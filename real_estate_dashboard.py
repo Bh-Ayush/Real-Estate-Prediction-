@@ -748,7 +748,7 @@ if uploaded is not None:
         
         if 'metrics' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            return
+            st.stop
         
         metrics_df = pd.DataFrame(st.session_state['metrics']).T
         
@@ -802,7 +802,7 @@ if uploaded is not None:
         
         if 'models' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            return
+            st.stop
         
         feature_names = ['Bedrooms', 'Bathrooms', 'Lot Size', 'House Size', 'Status', 'State']
         
@@ -879,7 +879,7 @@ if uploaded is not None:
         
         if 'models' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            return
+            st.stop
         
         tab1, tab2, tab3 = st.tabs(["Geographic Bias", "Price Range Analysis", "Prediction Equity"])
         
