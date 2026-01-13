@@ -18,6 +18,8 @@ import lightgbm as lgb
 from scipy import stats
 from scipy.stats import zscore
 import warnings
+import zipfile
+import io
 warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="US Real Estate Analysis", layout="wide", initial_sidebar_state="expanded")
@@ -173,29 +175,34 @@ def main():
     ])
     
     # Load data
-    data_path = st.sidebar.text_input("Enter dataset path:", "/Volumes/mydata/ayushnew/realtor-data.zip.csv")
-    
-    if st.sidebar.button("Load Data"):
-        with st.spinner("Loading and processing data..."):
-            try:
-                df_raw = load_data(data_path)
-                st.session_state['df_raw'] = df_raw
-                
-                df_clean = preprocess_data(df_raw)
-                st.session_state['df_clean'] = df_clean
-                
-                df_feat = create_features(df_clean)
-                st.session_state['df_feat'] = df_feat
-                
-                st.sidebar.success(f"Data loaded successfully! {len(df_clean):,} records")
-            except Exception as e:
-                st.sidebar.error(f"Error loading data: {str(e)}")
-    
-    if 'df_feat' not in st.session_state:
-        st.info("Please load the dataset using the sidebar.")
-        return
-    
-    df = st.session_state['df_feat']
+st.sidebar.header("Data")
+
+uploaded = st.sidebar.file_uploader(
+    "Upload dataset (.csv or .zip)",
+    type=["csv", "zip"]
+)
+
+df_raw = None
+
+if uploaded is not None:
+    try:
+        if uploaded.name.endswith(".zip"):
+            # Read the first CSV found inside the zip
+            with zipfile.ZipFile(uploaded) as z:
+                csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
+                if not csv_names:
+                    st.sidebar.error("No CSV file found inside the ZIP.")
+                else:
+                    with z.open(csv_names[0]) as f:
+                        df_raw = pd.read_csv(f)
+        else:
+            df_raw = pd.read_csv(uploaded)
+
+        st.sidebar.success(f"Loaded {len(df_raw):,} rows and {df_raw.shape[1]} columns")
+
+    except Exception as e:
+        st.sidebar.error(f"Error loading data: {e}")
+
     
     # PAGE 1: EXECUTIVE SUMMARY
     if page == "Executive Summary":
