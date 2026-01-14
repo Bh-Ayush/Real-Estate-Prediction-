@@ -20,13 +20,19 @@ from scipy.stats import zscore
 import warnings
 import zipfile
 import io
+import os
+import sys
 warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="US Real Estate Analysis", layout="wide", initial_sidebar_state="expanded")
 
 @st.cache_data
 def load_data(filepath):
-    df = pd.read_csv(filepath)
+    """Load data from CSV or Parquet file."""
+    if filepath.endswith('.parquet') or filepath.endswith('.parq'):
+        df = pd.read_parquet(filepath)
+    else:
+        df = pd.read_csv(filepath)
     return df
 
 @st.cache_data
@@ -177,24 +183,48 @@ def main():
     # Load data
     st.sidebar.header("Data")
 
-    uploaded = st.sidebar.file_uploader("Upload dataset (.csv or .zip)", type=["csv", "zip"])
+    uploaded = st.sidebar.file_uploader("Upload dataset (.csv, .parquet, or .zip)", type=["csv", "zip", "parquet"])
 
-
-# Use df_raw only if it loaded
+    # Use df_raw only if it loaded
     df_raw = None
     if uploaded is not None:
         try:
             if uploaded.name.endswith(".zip"):
                 import zipfile
                 with zipfile.ZipFile(uploaded) as z:
-                    csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
+                    # Look for CSV or Parquet files inside the ZIP
+                    csv_names = [n for n in z.namelist() if n.lower().endswith((".csv", ".parquet", ".parq"))]
                     if not csv_names:
-                        st.sidebar.error("No CSV file found inside the ZIP.")
+                        st.sidebar.error("No CSV or Parquet file found inside the ZIP.")
                         st.stop()
                     with z.open(csv_names[0]) as f:
-                        df_raw = pd.read_csv(f)
+                        if csv_names[0].lower().endswith((".parquet", ".parq")):
+                            df_raw = pd.read_parquet(f)
+                        else:
+                            df_raw = pd.read_csv(f)
+            elif uploaded.name.endswith((".parquet", ".parq")):
+                df_raw = pd.read_parquet(uploaded)
             else:
                 df_raw = pd.read_csv(uploaded)
+            
+            # Optional: Sampling for very large datasets
+            if len(df_raw) > 100000:
+                st.sidebar.warning(f"Large dataset detected ({len(df_raw):,} rows)!")
+                use_sample = st.sidebar.checkbox(
+                    "Sample dataset for faster analysis?",
+                    value=False,
+                    help="Taking a sample may speed up processing significantly. You can always re-upload and process the full dataset."
+                )
+                if use_sample:
+                    sample_size = st.sidebar.slider(
+                        "Sample size (rows)",
+                        min_value=1000,
+                        max_value=len(df_raw),
+                        value=min(50000, len(df_raw)),
+                        step=1000
+                    )
+                    df_raw = df_raw.sample(n=sample_size, random_state=42)
+                    st.sidebar.info(f"Using {len(df_raw):,} rows for analysis")
             
             st.session_state["df_raw"] = df_raw
             df_clean = preprocess_data(df_raw)
@@ -207,14 +237,18 @@ def main():
             st.sidebar.error(f"Error loading data: {e}")
             st.stop()
     
-    if "df_feat" not in st.session_state:
-        st.info("Please upload the dataset using the sidebar.")
-        st.stop()
-    
-    df = st.session_state["df_feat"]
-  
-    # PAGE 1: EXECUTIVE SUMMARY
-    if page == "Executive Summary":
+    # Use a safe getter so running the script with `python` doesn't raise KeyError.
+    df = st.session_state.get("df_feat")
+    if df is None:
+        st.info("Please upload the dataset using the sidebar (or run the app with `streamlit run real_estate_dashboard.py`).")
+        # Attempt to stop the Streamlit script. If that doesn't exit (e.g., when running with
+        # plain `python`), return from `main()` so the script does not continue executing.
+        try:
+            st.stop()
+        except Exception:
+            pass
+        return
+
         st.header("Executive Summary")
         
         col1, col2, col3, col4 = st.columns(4)
@@ -487,44 +521,48 @@ def main():
         
         if 'models' not in st.session_state:
             with st.spinner("Training machine learning models..."):
-                # Prepare data for modeling
-                feature_cols = ['bed', 'bath', 'acre_lot', 'house_size', 'status_encoded']
-                
-                # Encode state as it's important
-                state_encoder = LabelEncoder()
-                df['state_encoded'] = state_encoder.fit_transform(df['state'])
-                feature_cols.append('state_encoded')
-                
-                X = df[feature_cols].copy()
-                y = df['price'].copy()
-                
-                # Remove any remaining NaN
-                mask = ~(X.isna().any(axis=1) | y.isna())
-                X = X[mask]
-                y = y[mask]
-                
-                # Train-test split
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-                
-                # Scale features
-                scaler = StandardScaler()
-                X_train_scaled = scaler.fit_transform(X_train)
-                X_test_scaled = scaler.transform(X_test)
-                
-                # Train models
-                models, predictions, metrics = train_models(X_train_scaled, X_test_scaled, 
-                                                           y_train, y_test)
-                
-                st.session_state['models'] = models
-                st.session_state['predictions'] = predictions
-                st.session_state['metrics'] = metrics
-                st.session_state['scaler'] = scaler
-                st.session_state['state_encoder'] = state_encoder
-                st.session_state['feature_cols'] = feature_cols
-                st.session_state['X_test'] = X_test
-                st.session_state['y_test'] = y_test
-                
-                st.success("Models trained successfully!")
+                try:
+                    # Prepare data for modeling
+                    feature_cols = ['bed', 'bath', 'acre_lot', 'house_size', 'status_encoded']
+                    
+                    # Encode state as it's important
+                    state_encoder = LabelEncoder()
+                    df['state_encoded'] = state_encoder.fit_transform(df['state'])
+                    feature_cols.append('state_encoded')
+                    
+                    X = df[feature_cols].copy()
+                    y = df['price'].copy()
+                    
+                    # Remove any remaining NaN
+                    mask = ~(X.isna().any(axis=1) | y.isna())
+                    X = X[mask]
+                    y = y[mask]
+                    
+                    # Train-test split
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                    
+                    # Scale features
+                    scaler = StandardScaler()
+                    X_train_scaled = scaler.fit_transform(X_train)
+                    X_test_scaled = scaler.transform(X_test)
+                    
+                    # Train models
+                    models, predictions, metrics = train_models(X_train_scaled, X_test_scaled, 
+                                                               y_train, y_test)
+                    
+                    st.session_state['models'] = models
+                    st.session_state['predictions'] = predictions
+                    st.session_state['metrics'] = metrics
+                    st.session_state['scaler'] = scaler
+                    st.session_state['state_encoder'] = state_encoder
+                    st.session_state['feature_cols'] = feature_cols
+                    st.session_state['X_test'] = X_test
+                    st.session_state['y_test'] = y_test
+                    
+                    st.success("Models trained successfully!")
+                except Exception as e:
+                    st.error(f"Model training failed: {e}")
+                    st.stop()
         
         tab1, tab2 = st.tabs(["Make Prediction", "Prediction Analysis"])
         
@@ -757,7 +795,7 @@ def main():
         
         if 'metrics' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            st.stop
+            st.stop()
         
         metrics_df = pd.DataFrame(st.session_state['metrics']).T
         
@@ -811,7 +849,7 @@ def main():
         
         if 'models' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            st.stop
+            st.stop()
         
         feature_names = ['Bedrooms', 'Bathrooms', 'Lot Size', 'House Size', 'Status', 'State']
         
@@ -888,7 +926,7 @@ def main():
         
         if 'models' not in st.session_state:
             st.warning("Please train models first by visiting the Price Prediction Engine page.")
-            st.stop
+            st.stop()
         
         tab1, tab2, tab3 = st.tabs(["Geographic Bias", "Price Range Analysis", "Prediction Equity"])
         
@@ -1106,5 +1144,57 @@ def main():
             st.subheader("Risk Metrics by State")
             st.dataframe(state_risk.head(20), use_container_width=True)
 
+
+def run_self_test():
+    """Run a minimal self-test to validate data processing and model training without Streamlit UI."""
+    import sys
+    print("Running self-test...")
+    # Create synthetic small dataset
+    df = pd.DataFrame({
+        'price': [200000, 150000, 300000, 500000, 750000, 120000],
+        'bed': [3, 2, 4, 5, 6, 2],
+        'bath': [2, 1, 3, 4, 5, 1],
+        'acre_lot': [0.2, 0.1, 0.5, 1.0, 2.0, 0.15],
+        'house_size': [1500, 900, 2000, 3500, 5000, 800],
+        'state': ['CA', 'TX', 'CA', 'NY', 'FL', 'TX'],
+        'status': ['for_sale', 'sold', 'for_sale', 'ready_to_build', 'sold', 'for_sale'],
+        'city': ['Los Angeles', 'Houston', 'San Francisco', 'New York', 'Miami', 'Dallas'],
+        'zip_code': ['90001', '77001', '94101', '10001', '33101', '75201']
+    })
+
+    try:
+        df_clean = preprocess_data(df)
+        df_feat = create_features(df_clean)
+
+        # Minimal modelling dataset
+        feature_cols = ['bed', 'bath', 'acre_lot', 'house_size', 'status_encoded']
+        state_encoder = LabelEncoder()
+        df_feat['state_encoded'] = state_encoder.fit_transform(df_feat['state'])
+        feature_cols.append('state_encoded')
+
+        X = df_feat[feature_cols]
+        y = df_feat['price']
+
+        # Train-test split
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        models, predictions, metrics = train_models(X_train_scaled, X_test_scaled, y_train, y_test)
+
+        print("Self-test completed successfully. Models trained:", list(models.keys()))
+        for name, m in metrics.items():
+            print(f" - {name}: R2={m['R2 Score']:.3f}, RMSE={m['RMSE']:.1f}")
+
+    except Exception as e:
+        print("Self-test failed:", e)
+        sys.exit(1)
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--self-test" in sys.argv:
+        run_self_test()
+    else:
+        main()
