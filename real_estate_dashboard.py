@@ -182,36 +182,36 @@ uploaded = st.sidebar.file_uploader("Upload dataset (.csv or .zip)", type=["csv"
 
 # Use df_raw only if it loaded
 df_raw = None
-if uploaded is not None:
-    try:
-        if uploaded.name.endswith(".zip"):
-            import zipfile
-            with zipfile.ZipFile(uploaded) as z:
-                csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
-                if not csv_names:
-                    st.sidebar.error("No CSV file found inside the ZIP.")
-                    st.stop()
-                with z.open(csv_names[0]) as f:
-                    df_raw = pd.read_csv(f)
-        else:
-            df_raw = pd.read_csv(uploaded)
-
-        st.session_state["df_raw"] = df_raw
-        df_clean = preprocess_data(df_raw)
-        st.session_state["df_clean"] = df_clean
-        df_feat = create_features(df_clean)
-        st.session_state["df_feat"] = df_feat
-
-        st.sidebar.success(f"Data loaded successfully! {len(df_clean):,} records")
-    except Exception as e:
-        st.sidebar.error(f"Error loading data: {e}")
+    if uploaded is not None:
+        try:
+            if uploaded.name.endswith(".zip"):
+                import zipfile
+                with zipfile.ZipFile(uploaded) as z:
+                    csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
+                    if not csv_names:
+                        st.sidebar.error("No CSV file found inside the ZIP.")
+                        st.stop()
+                    with z.open(csv_names[0]) as f:
+                        df_raw = pd.read_csv(f)
+            else:
+                df_raw = pd.read_csv(uploaded)
+            
+            st.session_state["df_raw"] = df_raw
+            df_clean = preprocess_data(df_raw)
+            st.session_state["df_clean"] = df_clean
+            df_feat = create_features(df_clean)
+            st.session_state["df_feat"] = df_feat
+            
+            st.sidebar.success(f"Data loaded successfully! {len(df_clean):,} records")
+        except Exception as e:
+            st.sidebar.error(f"Error loading data: {e}")
+            st.stop()
+    
+    if "df_feat" not in st.session_state:
+        st.info("Please upload the dataset using the sidebar.")
         st.stop()
-
-if "df_feat" not in st.session_state:
-    st.info("Please upload the dataset using the sidebar.")
-    st.stop()
-
-df = st.session_state["df_feat"]
+    
+    df = st.session_state["df_feat"]
   
     # PAGE 1: EXECUTIVE SUMMARY
     if page == "Executive Summary":
