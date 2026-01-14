@@ -13,21 +13,6 @@ streamlit run real_estate_dashboard.py
 # 3. Upload the generated .parquet file in the sidebar
 ```
 
-## Solving Error 413 (Payload Too Large)
-
-If you get **Error 413** when uploading your realtor dataset:
-
-### ✅ Recommended: Use Parquet Format
-```bash
-python convert_to_parquet.py realtor_data.csv
-# Creates realtor_data.parquet (~10x smaller!)
-```
-
-**Why Parquet?**
-- 🚀 ~10x smaller file size (solves upload errors)
-- ⚡ ~10x faster to load
-- 📊 Preserves all data types
-- 💾 Industry standard format
 
 ### Supported File Formats
 - **Parquet** (.parquet, .parq) - ⭐ Recommended for large files
@@ -125,26 +110,6 @@ If your dataset is >100,000 rows:
 3. Use sampling slider to select subset for analysis
 4. Results remain statistically valid
 
-## Troubleshooting
-
-### Q: Still getting Error 413 with Parquet?
-**A:** Your file might be >500 MB. Options:
-- Use the sampling feature (select fewer rows)
-- Pre-filter your data to essential columns
-- Split into multiple files
-
-### Q: How long does Parquet conversion take?
-**A:** ~1-2 seconds per 100 MB. A 500 MB CSV typically takes 5-10 seconds.
-
-### Q: Is data lost when converting to Parquet?
-**A:** No! Parquet preserves all data types and values exactly. It's just a more efficient storage format.
-
-### Q: Can I use Parquet files with existing tools?
-**A:** Yes! Parquet is industry standard and supported by:
-- Pandas (`pd.read_parquet()`)
-- R, Python, Java, C++, Scala
-- Spark, Hadoop, Hive
-- Excel, Power BI, Tableau
 
 ## Documentation
 
