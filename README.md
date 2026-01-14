@@ -15,7 +15,7 @@ streamlit run real_estate_dashboard.py
 
 
 ### Supported File Formats
-- **Parquet** (.parquet, .parq) - ⭐ Recommended for large files
+- **Parquet** (.parquet, .parq) - Recommended for large files
 - **CSV** (.csv) - Works for files <500 MB
 - **ZIP** (.zip) - Archives containing CSV or Parquet files
 
@@ -57,10 +57,10 @@ python setup_dataset.py realtor_data.csv
 ```
 
 This will:
-- ✓ Validate your dataset structure
-- ✓ Show file size and compression potential
-- ✓ Optionally convert to Parquet
-- ✓ Provide next steps
+- Validate your dataset structure
+- Show file size and compression potential
+- Optionally convert to Parquet
+- Provide next steps
 
 ### Running Self-Test (No Streamlit UI)
 
