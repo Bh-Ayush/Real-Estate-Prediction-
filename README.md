@@ -12,8 +12,19 @@ streamlit run real_estate_dashboard.py
 
 # 3. Upload the generated .parquet file in the sidebar
 ```
+## Dataset
 
+The project uses a U.S. residential real estate listings dataset originally sourced from **Kaggle**.  
+For efficient storage and faster loading, the dataset has been compressed into **Apache Parquet** format.
 
+- **Location:** `data/realtor_data.parquet`
+- **Format:** Apache Parquet
+- **Size:** < 100 MB
+- **Original Source:** Kaggle (CSV)
+
+The dataset is included in this repository for reproducibility and demonstration purposes.  
+Users may also upload their own compatible real estate datasets directly through the dashboard.
+---
 ### Supported File Formats
 - **Parquet** (.parquet, .parq) - Recommended for large files
 - **CSV** (.csv) - Works for files <500 MB
