@@ -175,13 +175,13 @@ def main():
     ])
     
     # Load data
-st.sidebar.header("Data")
+    st.sidebar.header("Data")
 
-uploaded = st.sidebar.file_uploader("Upload dataset (.csv or .zip)", type=["csv", "zip"])
+    uploaded = st.sidebar.file_uploader("Upload dataset (.csv or .zip)", type=["csv", "zip"])
 
 
 # Use df_raw only if it loaded
-df_raw = None
+    df_raw = None
     if uploaded is not None:
         try:
             if uploaded.name.endswith(".zip"):
